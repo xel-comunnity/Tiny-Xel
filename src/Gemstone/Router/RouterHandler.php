@@ -107,8 +107,6 @@ class RouterHandler{
                 $this->middleware = $routeInfo[1]['middleware'];
                 $vars = $routeInfo[2];
 
-                // test shift 
-
                 // ? middleware dispatcher 
                 $this->middlewareDispatch($request, $response);
                 
