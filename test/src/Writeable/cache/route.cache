@@ -1,0 +1,37 @@
+<?php return array (
+  0 => 
+  array (
+    'GET' => 
+    array (
+      '/api/' => 
+      array (
+        'method' => 'GET',
+        'route' => '/api/',
+        'handler' => 
+        array (
+          0 => 'Tiny\\Test\\Service\\Home',
+          1 => 'index',
+        ),
+        'middleware' => 
+        array (
+        ),
+      ),
+      '/api/view' => 
+      array (
+        'method' => 'GET',
+        'route' => '/api/view',
+        'handler' => 
+        array (
+          0 => 'Tiny\\Test\\Service\\Home',
+          1 => 'view',
+        ),
+        'middleware' => 
+        array (
+        ),
+      ),
+    ),
+  ),
+  1 => 
+  array (
+  ),
+);

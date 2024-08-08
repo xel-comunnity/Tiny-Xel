@@ -1,0 +1,26 @@
+{
+    "name": "tiny/xel",
+    "type": "library",
+    "autoload": {
+        "psr-4": {
+            "Tiny\\Xel\\": "src/",
+            "Tiny\\Test\\": "test/src/"
+        },
+        "files": [
+            "src/Provider/ProviderManager.php",
+            "src/Gemstone/Handler/RequestHandler.php"
+        ]
+    },
+    "authors": [
+        {
+            "name": "bxel07",
+            "email": "yogipratama.ut@gmail.com"
+        }
+    ],
+    "require-dev": {
+        "swoole/ide-helper": "@dev"
+    },
+    "require": {
+        "nikic/fast-route": "^1.3"
+    }
+}
