@@ -21,6 +21,7 @@
         "swoole/ide-helper": "@dev"
     },
     "require": {
-        "nikic/fast-route": "^1.3"
+        "nikic/fast-route": "^1.3",
+        "ezyang/htmlpurifier": "^4.17"
     }
 }

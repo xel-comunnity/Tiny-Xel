@@ -71,9 +71,12 @@ class Applications{
     public function onRequest(Request $request, Response $response){
 
         // ? set Context 
-        RequestContext::setRequest($request);
-        RequestContext::setResponse($response);
-        
+        // RequestContext::setRequest($request);
+        // RequestContext::setResponse($response);
+
+        Context::set('request', $request);
+        Context::set('response', $response);
+
         // ? DB Context
         DBContext::setPool($this->server->{'pdo'});
 
@@ -86,7 +89,7 @@ class Applications{
         __requestHandler($this->server);
 
         // ? clear context
-        RequestContext::clear();
+        // RequestContext::clear();
         DBContext::releaseConnection();
         Context::clear();
     }

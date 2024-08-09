@@ -53,7 +53,6 @@ class RequestContext{
         }
     }
 
-
     public static function json($data, $statusCode = 200)
     {
         $response = self::getResponse();

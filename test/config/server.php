@@ -13,6 +13,7 @@ return [
             "enable_static_handler" => true,
             "static_handler_locations" => ['/static/images', '/static/files'],
             'http_parse_post' => true,
+            'http_parse_cookie' => false,
         ]
     ],
 ];

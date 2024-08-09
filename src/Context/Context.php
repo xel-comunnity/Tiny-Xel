@@ -6,33 +6,30 @@ use Swoole\Coroutine;
 
 class Context
 {
-    protected static $contexts = [];
+    protected static $pool = [];
 
     public static function set(string $key, $value)
     {
-       $cid = Coroutine::getCid();
-       if (!isset(self::$contexts[$cid])) {
-        self::$contexts[$cid] = [];
-       }
-
-       self::$contexts[$cid][$key] = $value;
+        $cid = Coroutine::getuid();
+        if ($cid > 0) {
+            self::$pool[$cid][$key] = $value;
+        }
     }
 
-    public static function get(string $key, $default = null)
+    public static function get(string $key)
     {
         $cid = Coroutine::getuid();
-        if (!isset(self::$contexts[$cid])) {
-            return $default;
+        if ($cid < 0) {
+            return null;
         }
-
-        return self::$contexts[$cid][$key];
+        return self::$pool[$cid][$key] ?? null;
     }
 
     public static function clear()
-    {
+    { 
         $cid = Coroutine::getuid();
-        if (isset(self::$contexts[$cid])) {
-            unset(self::$contexts[$cid]);
+        if ($cid > 0) {
+            unset(self::$pool[$cid]);
         }
         
     }

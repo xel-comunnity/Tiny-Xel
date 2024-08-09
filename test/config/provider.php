@@ -16,6 +16,8 @@ return [
     "websocket" =>[ /**Put Socket Handler (available soon) */ ],    
 
     "custom"=> [
-        "custom-logic" => [ /** Register to provider for custom library from external or your own code */ ] ,
+        "custom-logic" => [ 
+            
+        ] ,
     ]
 ];

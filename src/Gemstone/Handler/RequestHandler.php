@@ -2,6 +2,8 @@
 
 namespace Tiny\Xel\Gemstone\Handler;
 use Tiny\Xel\Context\RequestContext;
+use Tiny\Xel\Context\Context;
+
 use Swoole\Http\Server;
 use Swoole\Http\Request;
 use Swoole\Http\Response;
@@ -9,8 +11,11 @@ use Swoole\Http\Response;
 
 function __requestHandler(Server $server) {
     // ? get context
-    $request =  RequestContext::getRequest();
-    $response = RequestContext::getResponse();
+    // $request =  RequestContext::getRequest();
+    // $response = RequestContext::getResponse();
+
+    $request =  Context::get('request');
+    $response = Context::get('response');
 
     // ? Fav Icon Handler
     __favIconHandler($server, $request , $response);

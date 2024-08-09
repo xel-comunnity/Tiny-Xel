@@ -3,6 +3,7 @@
 namespace Tiny\Xel\Provider;
 
 interface ProviderInterface{
-    public function register();
-    public function boot();
+
+    public function provide():array;
+    public function config():array;
 }

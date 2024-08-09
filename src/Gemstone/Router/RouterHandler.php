@@ -3,8 +3,10 @@
 namespace Tiny\Xel\Gemstone\Router;
 
 use FastRoute\Dispatcher;
-use Tiny\Xel\Context\Context;
 use Tiny\Xel\Context\RequestContext;
+use Tiny\Xel\Context\Context;
+
+
 
 # Swoole Server 
 use Swoole\Http\Server;
@@ -14,8 +16,6 @@ use Swoole\Http\Response;
 class RouterHandler{
 
     private array $dispatcher;
-    private Request $request;
-    private Response $response;
 
     private array $middleware;
     private \SplQueue $queue;
@@ -71,8 +71,11 @@ class RouterHandler{
 
     public function handler(Server $server , array $handler){
         // ? Get Context request & response
-        $request =  RequestContext::getRequest();
-        $response = RequestContext::getResponse();
+        // $request =  RequestContext::getRequest();
+        // $response = RequestContext::getResponse();
+
+        $request =  Context::get('request');
+        $response = Context::get('response');
 
         // ? get middleware queue
         $this->queue = Context::get('middleware_queue');
