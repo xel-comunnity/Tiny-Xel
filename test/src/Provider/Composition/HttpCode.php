@@ -1,7 +1,7 @@
 <?php 
 namespace  Tiny\Test\Provider\Composition;
 
-class HttpStatusCodes
+class HttpCode
 {
     /**
      * @var int OK - The request has succeeded.
