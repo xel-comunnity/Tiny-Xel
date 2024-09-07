@@ -2,8 +2,20 @@
 
 namespace Tiny\Xel\Provider;
 
-interface ProviderInterface{
+interface ProviderInterface
+{
+    /**
+     *@return array<int, mixed>
+     */
+    public function provide(): array;
 
-    public function provide():array;
-    public function config():array;
+    /**
+     *@return array<int, mixed>
+     */
+    public function config(): array;
+
+    /**
+     *@return void
+     */
+    public function boot(): void;
 }

@@ -26,11 +26,10 @@ class Context
     }
 
     public static function clear()
-    { 
+    {
         $cid = Coroutine::getuid();
         if ($cid > 0) {
             unset(self::$pool[$cid]);
         }
-        
     }
 }

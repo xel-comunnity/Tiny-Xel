@@ -1,6 +1,7 @@
-<?php 
+<?php
 
 namespace Tiny\Test\Provider\Composition;
+
 use Tiny\Xel\Context\Context;
 use HTMLPurifier;
 

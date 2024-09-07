@@ -1,11 +1,13 @@
-<?php 
+<?php
+
 namespace Tiny\Xel\Context;
 
 use Swoole\Http\Request;
 use Swoole\Http\Response;
 use Swoole\Coroutine;
 
-class RequestContext{
+class RequestContext
+{
     protected static $pool = [];
 
     public static function setRequest(Request $request)

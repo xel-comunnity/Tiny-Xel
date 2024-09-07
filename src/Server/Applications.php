@@ -1,107 +1,104 @@
-<?php 
+<?php
+
+declare(strict_types=1);
 
 namespace Tiny\Xel\Server;
+
 # Server Lib
 use Swoole\Http\Server;
 use Swoole\Http\Response;
 use Swoole\Http\Request;
 
 # Provider Lib
-use Tiny\Xel\Context\DBContext;
-use Tiny\Xel\Context\RequestContext;
-use Tiny\Xel\Context\Context;
-use function Tiny\Xel\Provider\{__db, __provider, __instance_init};
-use function Tiny\Xel\Gemstone\Handler\__requestHandler;
+use function Tiny\Xel\Provider\{__boot_app};
+use function Tiny\Xel\Gemstone\Handler\{__requestHandler};
+use function Tiny\Xel\Gemstone\Handler\Context\{
+    __init__context,
+    __flush_context
+};
 
-
-class Applications{
-
+class Applications
+{
     public Server $server;
 
     private array $provider = [];
-    
 
-    public function __construct(
-        private array $configServer,
-        private array $configDB,
-    ){}
-
-
-    public function __setProvider(array $provider){
+    /**
+     * @param array<int, mixed> $provider
+     * @return Applications
+     */
+    public function __setProvider(array $provider): Applications
+    {
         $this->provider = $provider;
         return $this;
     }
 
-    // ? server boot 
-    public function __init():void{
+    // ? server boot
+    public function __init(): void
+    {
         // ? server init
-        $this->server = new Server
-        (
-            $this->configServer['api']['host'], 
-            $this->configServer['api']['port'],
-            $this->configServer['api']['mode'],
-            $this->configServer['api']['sock'],
+        $this->server = new Server(
+            $this->provider["server"]["api"]["api"]["host"],
+            $this->provider["server"]["api"]["api"]["port"],
+            $this->provider["server"]["api"]["api"]["mode"],
+            $this->provider["server"]["api"]["api"]["sock"]
         );
-        
+
         // ? server setup
-        $this->server->set($this->configServer['api']['options']);
+        $this->server->set($this->provider["server"]["api"]["api"]["options"]);
 
         // ? server events
-        $this->server->on('workerStart', [$this, 'onWorkerStart']);
-        $this->server->on('request', [$this, 'onRequest']);
+        $this->server->on("workerStart", [$this, "onWorkerStart"]);
+        $this->server->on("request", [$this, "onRequest"]);
+        $this->server->on("task", [$this, "onTask"]);
 
         $this->server->start();
+        
     }
 
     /////////////////////////////////////////////////////////////////////////// ? server event handler
-    
-    // ? OnWorker event : for handling sharing state between IPC Worker 
-    public function onWorkerStart(Server $server, int $workerId){
-        // ? DB init
-         __db($server, $this->configDB);
 
-        // ? Provider init
-        __provider($server ,$this->provider);
-
-        // ? instance init 
-        __instance_init($server);
+    /**
+     * @return void
+     */
+    public function onWorkerStart(Server $server, int $workerId): void
+    {
+        // ? boot  server provider
+        __boot_app($server, $this->provider);
     }
 
-    // ? OnStart event : for handling Http Request
-    public function onRequest(Request $request, Response $response){
-
-        // ? set Context 
-        // RequestContext::setRequest($request);
-        // RequestContext::setResponse($response);
-
-        Context::set('request', $request);
-        Context::set('response', $response);
-
-        // ? DB Context
-        DBContext::setPool($this->server->{'pdo'});
-
-        // ? Custom Context
-        Context::set('router_init', $this->server->{'middleware_queue'}); 
-        Context::set('middleware_queue', $this->server->{'middleware_queue'});
-        Context::set('server', $this->server);  
+    // ? OnStart event : for handling Http Requests
+    public function onRequest(Request $request, Response $response): void
+    {
+        // ? load context
+        __init__context($request, $response, $this->server);
 
         // ? request handler
-        __requestHandler($this->server);
+        __requestHandler($this->server, $request, $response);
 
-        // ? clear context
-        // RequestContext::clear();
-        DBContext::releaseConnection();
-        Context::clear();
+        // ? flush context
+        __flush_context();
     }
 
-  
     // ? OnStart event : for handling process when server start
-    public function onStart(){}
-   
-    
+    /**
+     * @return void
+     */
+    public function onStart(): void
+    {
+    }
+    /**
+     * @return void
+     */
+    public function onTask(): void
+    {
+    }
+
+    /**
+     * Summary of periodicReload
+     * @return void
+     */
+    public function periodicReload(): void
+    {
+    }
 }
-
-
-
-
-

@@ -5,7 +5,8 @@ namespace Tiny\Test\Provider\Composition;
 use Tiny\Xel\Context\Context;
 use HTMLPurifier;
 
-trait Response {
+trait Response
+{
     protected const CONTENT_TYPE_JSON = 'application/json';
     protected ?\Swoole\Http\Response $response = null;
     protected ?HTMLPurifier $purifier = null;
@@ -22,7 +23,7 @@ trait Response {
         $this->response->header('Content-Type', self::CONTENT_TYPE_JSON);
         $this->response->status($statusCode);
         $this->response->end(json_encode($data));
-        
+
         Context::clear();
     }
 

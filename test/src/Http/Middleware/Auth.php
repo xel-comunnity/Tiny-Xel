@@ -1,6 +1,7 @@
 <?php
 
 namespace Tiny\Test\Http\Middleware;
+
 use Tiny\Xel\Context\RequestContext;
 use Tiny\Xel\Gemstone\Middleware\MiddlewareInterface;
 use Swoole\Http\Request;
