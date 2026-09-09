@@ -48,4 +48,20 @@ interface DriverContract
      * no-op.
      */
     public function release(): void;
+
+    /**
+     * A cheap, synchronous connectivity check (e.g. `SELECT 1`) used by
+     * Tiny\Xel\Health\HealthCheckHandler. Must never throw - catch any
+     * connection failure internally and return false.
+     */
+    public function ping(): bool;
+
+    /**
+     * Tears the driver down when a worker process is stopping (see
+     * Applications::onWorkerStop). Unlike release(), which runs after every
+     * request, this runs once, right before the process exits - close
+     * pooled connections / disconnect here so the OS socket doesn't outlive
+     * the process needlessly. Must never throw.
+     */
+    public function shutdown(): void;
 }
