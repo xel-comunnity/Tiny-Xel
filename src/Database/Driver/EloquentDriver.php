@@ -130,9 +130,28 @@ class EloquentDriver implements DriverContract
 
     public function release(): void
     {
-        // ? No per-coroutine state to release under a blocking server; just
+        $connection = $this->capsule->connection();
+
+        // ? This one connection lives for the whole worker (see the class
+        // ? docblock), not per-request like a traditional PHP-FPM process.
+        // ? If a request throws between beginTransaction() and commit()/
+        // ? rollBack() - a very ordinary bug in business code, not
+        // ? something exotic - the connection would otherwise stay inside
+        // ? that half-finished transaction forever: every later request on
+        // ? this worker would silently run inside it too, seeing
+        // ? uncommitted writes or blocking on locks that were never meant
+        // ? to outlive the request that opened them. Force it closed here
+        // ? so one request's mistake can never leak into the next one.
+        if ($connection->transactionLevel() > 0) {
+            error_log(sprintf(
+                "EloquentDriver: request ended with %d open transaction(s) still on the connection - forcing rollback.",
+                $connection->transactionLevel()
+            ));
+            $connection->rollBack(0);
+        }
+
         // ? keep the query log from growing for the lifetime of the worker.
-        $this->capsule->connection()->flushQueryLog();
+        $connection->flushQueryLog();
     }
 
     /**
