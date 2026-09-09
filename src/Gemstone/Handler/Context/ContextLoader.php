@@ -13,6 +13,7 @@ use Tiny\Xel\Context\RequestContext;
 use Tiny\Xel\Context\ErrorContext;
 use Tiny\Xel\Context\DBContext;
 use Tiny\Xel\Database\Contract\DriverContract;
+use Tiny\Xel\Exception\ExceptionRenderer;
 
 /**
  *@param Request $request
@@ -31,13 +32,10 @@ function __init__context(Request $request, Response $response, Server $server)
         // ? define custom context on pre init
         __pre__register__context($server, $request, $response);
     } catch (Throwable $e) {
-        $response->end(
-            json_encode([
-                "status" => "error",
-                "message" => $e->getMessage(),
-                "error-trace" => $e->getTrace(),
-            ])
-        );
+        // ? previously dumped $e->getTrace() straight into the response
+        // ? body - ExceptionRenderer never leaks that to the client, only
+        // ? to the server log.
+        ExceptionRenderer::respond($response, $e);
     }
 }
 
@@ -104,12 +102,12 @@ function __fly__register__context(Server $server)
             try {
                 Context::set($key, new $value());
             } catch (Throwable $e) {
-                $response->end(
-                    json_encode([
-                        "status" => $e->getMessage(),
-                        "error-trace" => $e->getTrace(),
-                    ])
-                );
+                // ? stop at the first failure - carrying on would just risk
+                // ? ending an already-ended response for every injection
+                // ? after this one (ExceptionRenderer guards against that
+                // ? too, but there's nothing useful left to do here).
+                ExceptionRenderer::respond($response, $e);
+                return;
             }
         }
     }
@@ -130,12 +128,8 @@ function __pre__register__context(Server $server)
             try {
                 Context::set($key, new $value());
             } catch (Throwable $e) {
-                $response->end(
-                    json_encode([
-                        "status" => $e->getMessage(),
-                        "error-trace" => $e->getTrace(),
-                    ])
-                );
+                ExceptionRenderer::respond($response, $e);
+                return;
             }
         }
     }

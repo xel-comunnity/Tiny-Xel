@@ -5,6 +5,7 @@ namespace Tiny\Xel\Provider;
 use Exception;
 use Swoole\Http\Server;
 use Swoole\Timer;
+use Throwable;
 use Tiny\Xel\Database\DriverResolver;
 use Tiny\Xel\Gemstone\Router\RouterHandler;
 
@@ -51,12 +52,13 @@ function __db(Server $server, array $config)
         $driver->boot($server, $config);
 
         $server->{'db_driver'} = $driver;
-    } catch (Exception $e) {
-        $server->error = [
-            "error-message" => $e->getMessage(),
-            "error-line" => $e->getLine(),
-            "error-trace" => $e->getTrace(),
-        ];
+    } catch (Throwable $e) {
+        // ? kept as the raw Throwable (not a hand-built array) so
+        // ? __favIconHandler can replay it through the same
+        // ? Tiny\Xel\Exception\ExceptionRenderer every other error in the
+        // ? system goes through, instead of dumping a raw trace array to
+        // ? every client hitting the server while it's stuck in this state.
+        $server->error = $e;
     }
 }
 
@@ -77,12 +79,8 @@ function __provider(Server $server, array $config = [])
                     => $value,
                 default => throw new Exception("Unsupported Provider key"),
             };
-        } catch (Exception $e) {
-            $server->error = [
-                "error-message" => $e->getMessage(),
-                "error-line" => $e->getLine(),
-                "error-trace" => $e->getTrace(),
-            ];
+        } catch (Throwable $e) {
+            $server->error = $e;
         }
     }
 }
