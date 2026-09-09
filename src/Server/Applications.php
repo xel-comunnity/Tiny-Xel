@@ -57,10 +57,20 @@ class Applications
         // ? set before the server starts, so this must happen here rather
         // ? than in onWorkerStart, where the db driver is actually booted.
         $dbDriver = DriverResolver::resolve(
-            $this->provider["db"]["contract"] ?? "swoole-pool"
+            $this->provider["db"]["contract"] ?? "eloquent"
         );
         if ($dbDriver::requiresBlockingServer()) {
             $options["enable_coroutine"] = false;
+
+            // ? task workers get their own coroutine toggle, independent of
+            // ? the main one above - task_enable_coroutine defaulting to
+            // ? true (see test/config/server.php) would otherwise let
+            // ? several dispatched tasks run concurrently as coroutines
+            // ? inside one task worker process, each sharing that worker's
+            // ? single Eloquent connection: the same class of coroutine-
+            // ? safety bug this driver exists to avoid, just relocated to
+            // ? task workers instead of HTTP workers.
+            $options["task_enable_coroutine"] = false;
         }
 
         // ? server setup

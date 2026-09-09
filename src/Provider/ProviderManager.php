@@ -41,14 +41,17 @@ function __periodic_reload(Server $server, array $hotReload)
 
 /**
  * Boots the configured db driver contract (see Tiny\Xel\Database\Contract\
- * DriverContract). Defaults to "swoole-pool" - the existing coroutine-native
- * PDOPool driver - to stay backwards compatible with configs that don't set
- * "contract" at all.
+ * DriverContract). Defaults to "eloquent": Laravel's Eloquent ORM, chosen
+ * as the default over "swoole-pool" (the coroutine-native PDOPool driver)
+ * because it doesn't require reasoning about coroutine-safety in
+ * application code at all - see EloquentDriver's class docblock. Configs
+ * that want the coroutine-native driver instead must set "contract" =>
+ * "swoole-pool" explicitly.
  */
 function __db(Server $server, array $config)
 {
     try {
-        $driver = DriverResolver::make($config["contract"] ?? "swoole-pool");
+        $driver = DriverResolver::make($config["contract"] ?? "eloquent");
         $driver->boot($server, $config);
 
         $server->{'db_driver'} = $driver;
