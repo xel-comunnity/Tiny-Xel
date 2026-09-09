@@ -9,6 +9,9 @@ use Throwable;
 
 # context
 use Tiny\Xel\Context\Context;
+use Tiny\Xel\Context\RequestContext;
+use Tiny\Xel\Context\ErrorContext;
+use Tiny\Xel\Context\DBContext;
 
 /**
  *@param Request $request
@@ -39,7 +42,15 @@ function __init__context(Request $request, Response $response, Server $server)
 
 function __flush_context()
 {
+    // ? Every coroutine-scoped store keyed by Coroutine::getuid() must be
+    // ? cleared at the end of its request. Coroutine ids are not reused
+    // ? while the worker is alive, so leaving any one of these pools
+    // ? unflushed leaks that request's data (and, for DBContext, a pooled
+    // ? PDO connection) for the lifetime of the worker process.
     Context::clear();
+    RequestContext::clear();
+    ErrorContext::clear();
+    DBContext::releaseConnection();
 }
 
 function __system__context(Request $request, Response $response, Server $server)
