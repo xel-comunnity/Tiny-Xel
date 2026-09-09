@@ -8,7 +8,6 @@ use Swoole\Database\PDOConfig;
 use Swoole\Database\PDOPool;
 use Swoole\Timer;
 use Tiny\Xel\Gemstone\Router\RouterHandler;
-use SplQueue;
 
 function __boot_app(Server $server, array $provider)
 {
@@ -164,8 +163,11 @@ function __populate_injection(Server $server)
 
 function __instance_init(Server $server)
 {
+    // ? RouterHandler is stateless per-request (see RouterHandler::handler);
+    // ? a single instance shared across every worker coroutine is safe.
+    // ? The middleware queue is intentionally NOT built here: a queue shared
+    // ? across concurrent coroutines would be mutated by every request at
+    // ? once, so RouterHandler builds a fresh one per request instead.
     $router = new RouterHandler();
-    $middlewareQueue = new SplQueue();
     $server->{'router_init'} = $router;
-    $server->{'middleware_queue'} = $middlewareQueue;
 }

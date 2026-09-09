@@ -44,14 +44,12 @@ function __flush_context()
 
 function __system__context(Request $request, Response $response, Server $server)
 {
-    // ? boot context http
+    // ? boot context http - isolated per coroutine via Context::set/get
     Context::set("request", $request);
     Context::set("response", $response);
 
-    // router , db, middleware provider
+    // ? db provider (a coroutine-safe PDOPool, not a single connection)
     Context::set("dbconnection", $server->{'pdo'});
-    Context::set("router_init", $server->{'middleware_queue'});
-    Context::set("middleware_queue", $server->{'middleware_queue'});
 }
 
 /**

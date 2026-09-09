@@ -12,22 +12,25 @@ use Swoole\Http\Response;
 
 class RouterHandler
 {
-    private array $dispatcher;
-
-    private array $middleware;
-    private \SplQueue $queue;
-
     /**
+     * A single RouterHandler instance is shared by every worker (see
+     * ProviderManager::__instance_init) and its methods run inside a new
+     * coroutine per HTTP request. Route info, the middleware list and the
+     * middleware queue must therefore stay local to each handler() call
+     * instead of being stored as instance properties - otherwise concurrent
+     * requests overwrite each other's routing/middleware state mid-flight.
+     *
      *@param Server $$server
      *@param array<int, mixed> $handler
      *@param Request $request
+     *@return array<int, mixed>
      */
 
     private function dispatch(
         Server $server,
         array $handler,
         Request $request
-    ): void {
+    ): array {
         // ? get uri
         $method = $request->server["request_method"];
         $uri = $request->server["request_uri"];
@@ -44,56 +47,56 @@ class RouterHandler
          */
         $dispatcher = $handler["dispatcher"];
 
-        $this->dispatcher = $dispatcher->dispatch($method, $uri);
+        return $dispatcher->dispatch($method, $uri);
     }
 
     /**
+     *@param array<int, mixed> $middleware
      *@param Request $request
      *@param Response $response
      */
 
     private function middlewareDispatch(
+        array $middleware,
         Request $request,
         Response $response
     ): void {
-        // Add middleware to the queue
-        foreach ($this->middleware as $m) {
-            $this->queue->enqueue(new $m());
+        // ? Build a queue scoped to this request only; a shared/pooled queue
+        // ? would be enqueued/dequeued by every concurrent coroutine at once.
+        $queue = new \SplQueue();
+        foreach ($middleware as $m) {
+            $queue->enqueue(new $m());
         }
 
         // run middleware
-        $this->MiddlewareRunner($request, $response);
+        $this->MiddlewareRunner($queue, $request, $response);
     }
 
-    private function MiddlewareRunner(Request $request, Response $response)
+    private function MiddlewareRunner(\SplQueue $queue, Request $request, Response $response)
     {
         // Process the middleware queue
-        while (!$this->queue->isEmpty()) {
+        while (!$queue->isEmpty()) {
             /**
              * @var \Tiny\Xel\Gemstone\Middleware\MiddlewareInterface $data
              */
-            $data = $this->queue->dequeue();
+            $data = $queue->dequeue();
 
             // Process the $data as needed
-            $data->handle($request, $response, function ($request, $response) {
-                $this->MiddlewareRunner($request, $response);
+            $data->handle($request, $response, function ($request, $response) use ($queue) {
+                $this->MiddlewareRunner($queue, $request, $response);
             });
         }
     }
 
     public function handler(Server $server, array $handler)
     {
-        // ? Get Context request & response
-
+        // ? Get Context request & response - Context isolates these per
+        // ? coroutine, so this is safe to read concurrently across requests
         $request = Context::get("request");
         $response = Context::get("response");
 
-        // ? get middleware queue
-        $this->queue = Context::get("middleware_queue");
-
-        $this->dispatch($server, $handler, $request);
-
-        $routeInfo = $this->dispatcher;
+        // ? route info is a local variable: never shared across requests
+        $routeInfo = $this->dispatch($server, $handler, $request);
 
         switch ($routeInfo[0]) {
             case Dispatcher::NOT_FOUND:
@@ -123,11 +126,11 @@ class RouterHandler
 
             case Dispatcher::FOUND:
                 $handler = $routeInfo[1]["handler"];
-                $this->middleware = $routeInfo[1]["middleware"];
+                $middleware = $routeInfo[1]["middleware"];
                 $vars = $routeInfo[2];
 
                 // ? middleware dispatcher
-                $this->middlewareDispatch($request, $response);
+                $this->middlewareDispatch($middleware, $request, $response);
 
                 // ? Check if the handler is a callable array (class method)
                 if (is_array($handler)) {
