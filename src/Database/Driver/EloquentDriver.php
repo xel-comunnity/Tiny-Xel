@@ -64,6 +64,13 @@ class EloquentDriver implements DriverContract
     {
         $capsule = new Capsule();
 
+        $driver = $config["config"]["driver"];
+        $database = $config["config"]["db"] ?? $config["config"]["database"] ?? null;
+
+        if ($driver === "sqlite" && $database !== null) {
+            $this->ensureSqliteFileExists($database);
+        }
+
         // ? Illuminate's ConnectionFactory decides whether to use its
         // ? multi-host failover resolver purely from array_key_exists('host',
         // ? $config) - NOT from whether the value is non-null. A driver like
@@ -73,11 +80,10 @@ class EloquentDriver implements DriverContract
         // ? keeps drivers that legitimately omit them (sqlite: host, port,
         // ? username, password) working the same as a native Laravel config.
         $capsule->addConnection(array_filter([
-            "driver" => $config["config"]["driver"],
+            "driver" => $driver,
             "host" => $config["config"]["host"] ?? null,
             "port" => $config["config"]["port"] ?? null,
-            "database" =>
-                $config["config"]["db"] ?? $config["config"]["database"] ?? null,
+            "database" => $database,
             "username" => $config["config"]["username"] ?? null,
             "password" => $config["config"]["password"] ?? null,
             "charset" => $config["config"]["charset"] ?? "utf8mb4",
@@ -174,5 +180,41 @@ class EloquentDriver implements DriverContract
         }
 
         $this->migrator = new Migrator($repository, $resolver, new Filesystem());
+    }
+
+    /**
+     * Illuminate's SQLiteConnector resolves the database path with
+     * `realpath($path) ?: realpath(base_path($path))`. realpath() returns
+     * false for a file that doesn't exist yet - true on a brand new
+     * project, before the first migration has ever run - and base_path()
+     * is a global helper a full Laravel app provides but the standalone
+     * illuminate/database package we depend on does not define at all, so
+     * that fallback is a fatal "Call to undefined function base_path()"
+     * instead of the friendlier SQLiteDatabaseDoesNotExistException it's
+     * meant to produce.
+     *
+     * Creating the file (and its directory) upfront - exactly what
+     * Laravel's own project skeleton does with
+     * `touch database/database.sqlite` before anything ever connects to
+     * it - makes that first realpath() succeed, so the base_path()
+     * fallback is never reached.
+     */
+    private function ensureSqliteFileExists(string $database): void
+    {
+        $isInMemory =
+            $database === ":memory:" ||
+            str_contains($database, "?mode=memory") ||
+            str_contains($database, "&mode=memory");
+
+        if ($isInMemory || is_file($database)) {
+            return;
+        }
+
+        $directory = dirname($database);
+        if (!is_dir($directory)) {
+            mkdir($directory, 0755, true);
+        }
+
+        touch($database);
     }
 }
