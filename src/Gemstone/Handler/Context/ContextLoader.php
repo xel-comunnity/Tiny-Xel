@@ -68,6 +68,11 @@ function __system__context(Request $request, Response $response, Server $server)
     Context::set("request", $request);
     Context::set("response", $response);
 
+    // ? lets Tiny\Xel\Task\TaskDispatcher hand a task off to
+    // ? $server->task() from anywhere in a route handler/middleware,
+    // ? without every caller needing the Server instance threaded through.
+    Context::set("server", $server);
+
     // ? RequestContext keeps its own per-coroutine pool (see
     // ? Context::scopeId) so its json()/text()/download()/... helpers work
     // ? off the current request without every handler having to fetch the
