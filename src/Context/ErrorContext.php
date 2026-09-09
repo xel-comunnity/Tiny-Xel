@@ -24,29 +24,30 @@ class ErrorContext
         return self::get('error') !== null;
     }
 
-    protected static function get($key)
+    /**
+     * The coroutine id, or a fixed slot (0) when the server runs with
+     * enable_coroutine disabled (see Context::scopeId for why that's still
+     * safely isolated between requests).
+     */
+    protected static function scopeId(): int
     {
         $cid = Coroutine::getuid();
-        if ($cid < 0) {
-            return null;
-        }
-        return self::$pool[$cid][$key] ?? null;
+        return $cid > 0 ? $cid : 0;
+    }
+
+    protected static function get($key)
+    {
+        return self::$pool[self::scopeId()][$key] ?? null;
     }
 
     protected static function put($key, $item)
     {
-        $cid = Coroutine::getuid();
-        if ($cid > 0) {
-            self::$pool[$cid][$key] = $item;
-        }
+        self::$pool[self::scopeId()][$key] = $item;
     }
 
     public static function clear()
     {
-        $cid = Coroutine::getuid();
-        if ($cid > 0) {
-            unset(self::$pool[$cid]);
-        }
+        unset(self::$pool[self::scopeId()]);
     }
 
     public static function getErrorDetails(): ?array
