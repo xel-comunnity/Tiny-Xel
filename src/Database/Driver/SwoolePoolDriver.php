@@ -8,6 +8,7 @@ use Exception;
 use Swoole\Database\PDOConfig;
 use Swoole\Database\PDOPool;
 use Swoole\Http\Server;
+use Throwable;
 use Tiny\Xel\Context\DBContext;
 use Tiny\Xel\Database\Contract\DriverContract;
 
@@ -17,6 +18,8 @@ use Tiny\Xel\Database\Contract\DriverContract;
  */
 class SwoolePoolDriver implements DriverContract
 {
+    private PDOPool $pool;
+
     public static function requiresBlockingServer(): bool
     {
         return false;
@@ -24,23 +27,42 @@ class SwoolePoolDriver implements DriverContract
 
     public function boot(Server $server, array $config): void
     {
-        $pool = match ($config["config"]["driver"]) {
+        $this->pool = match ($config["config"]["driver"]) {
             "mysql" => $this->mysql($config),
             "sqlite" => $this->sqlite($config),
             "pgsql" => $this->pgsql($config),
             default => throw new Exception("Unsupported Driver"),
         };
 
-        DBContext::setPool($pool);
+        DBContext::setPool($this->pool);
 
         // ? kept for backwards compatibility: existing app code reads the
         // ? pool straight off the Server object via Context "dbconnection"
-        $server->pdo = $pool;
+        $server->pdo = $this->pool;
     }
 
     public function release(): void
     {
         DBContext::releaseConnection();
+    }
+
+    public function ping(): bool
+    {
+        try {
+            DBContext::getConnection()->query("SELECT 1");
+            return true;
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+
+    public function shutdown(): void
+    {
+        // ? closes the pool's channel and every connection sitting in it -
+        // ? nothing left checked out mid-request at this point, since this
+        // ? runs once at worker shutdown, after that worker has stopped
+        // ? accepting new requests.
+        $this->pool->close();
     }
 
     private function sqlite(array $config): PDOPool

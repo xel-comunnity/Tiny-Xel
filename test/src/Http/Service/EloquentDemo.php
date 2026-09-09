@@ -3,7 +3,9 @@
 namespace Tiny\Test\Http\Service;
 
 use Tiny\Test\Model\User;
+use Tiny\Test\Task\LogUserCreatedTask;
 use Tiny\Xel\Context\RequestContext;
+use Tiny\Xel\Task\TaskDispatcher;
 
 /**
  * Demonstrates the "eloquent" db driver contract: plain Eloquent Model
@@ -23,7 +25,31 @@ final class EloquentDemo
 {
     public function index(): void
     {
-        RequestContext::json(User::all(), 200);
+        // ? User::all() has no bound - it fetches and JSON-encodes every
+        // ? row in one go. Fine while the table is empty, but under any
+        // ? real load (or after a load test that inserted thousands of
+        // ? rows) that becomes a full table scan plus a huge in-memory
+        // ? encode on a single blocking connection, which is slow enough
+        // ? to make every concurrent request queue up behind it and time
+        // ? out. forPage()/limit()+offset() are on the query builder
+        // ? itself - no extra pagination package needed.
+        $params = RequestContext::getQueryParams();
+
+        $perPage = max(1, min((int) ($params["per_page"] ?? 25), 100));
+        $page = max(1, (int) ($params["page"] ?? 1));
+
+        $users = User::query()
+            ->orderBy("id")
+            ->forPage($page, $perPage)
+            ->get();
+
+        RequestContext::json(
+            [
+                "data" => $users,
+                "meta" => ["page" => $page, "per_page" => $perPage],
+            ],
+            200
+        );
     }
 
     public function store(): void
@@ -40,6 +66,11 @@ final class EloquentDemo
         ]);
 
         $user = User::create($data);
+
+        // ? offloaded to a Swoole task worker (see Tiny\Xel\Task\
+        // ? TaskDispatcher) - the response below doesn't wait on it.
+        TaskDispatcher::dispatch(new LogUserCreatedTask($user->email));
+
         RequestContext::json($user, 201);
     }
 }
