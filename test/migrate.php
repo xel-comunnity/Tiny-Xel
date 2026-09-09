@@ -8,7 +8,11 @@
  * boot. Every worker booting would otherwise race to run the same pending
  * migrations against the database at the same time.
  *
- * Usage: php test/migrate.php
+ * Usage:
+ *   php test/migrate.php                 run pending migrations
+ *   php test/migrate.php status           show ran vs pending migrations
+ *   php test/migrate.php rollback         roll back the last batch
+ *   php test/migrate.php rollback --step=2  roll back the last 2 migrations
  */
 
 require __DIR__ . "/../vendor/autoload.php";
@@ -35,13 +39,60 @@ $driver = new EloquentDriver();
 $driver->connect($db);
 
 $migrator = $driver->migrator();
-$ran = $migrator->run([$db["migrations"]["path"]]);
+$path = $db["migrations"]["path"];
 
-if (empty($ran)) {
-    echo "Nothing to migrate.\n";
-    exit(0);
+$action = $argv[1] ?? "migrate";
+
+$options = [];
+foreach (array_slice($argv, 2) as $arg) {
+    if (preg_match('/^--step=(\d+)$/', $arg, $m)) {
+        $options["step"] = (int) $m[1];
+    }
 }
 
-foreach ($ran as $migration) {
-    echo "Migrated: {$migration}\n";
+switch ($action) {
+    case "status":
+        $ran = $migrator->getRepository()->getRan();
+        $files = $migrator->getMigrationFiles([$path]);
+
+        if (empty($files)) {
+            echo "No migration files found in {$path}.\n";
+            break;
+        }
+
+        foreach ($files as $name => $file) {
+            $status = in_array($name, $ran, true) ? "Ran" : "Pending";
+            printf("%-8s %s\n", $status, $name);
+        }
+        break;
+
+    case "rollback":
+        $rolledBack = $migrator->rollback([$path], $options);
+
+        if (empty($rolledBack)) {
+            echo "Nothing to rollback.\n";
+            break;
+        }
+
+        foreach ($rolledBack as $migration) {
+            echo "Rolled back: {$migration}\n";
+        }
+        break;
+
+    case "migrate":
+        $ran = $migrator->run([$path]);
+
+        if (empty($ran)) {
+            echo "Nothing to migrate.\n";
+            break;
+        }
+
+        foreach ($ran as $migration) {
+            echo "Migrated: {$migration}\n";
+        }
+        break;
+
+    default:
+        fwrite(STDERR, "Unknown action \"{$action}\". Use: migrate, status, rollback.\n");
+        exit(1);
 }
