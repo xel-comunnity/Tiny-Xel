@@ -27,6 +27,7 @@
     "ezyang/htmlpurifier": "^4.17",
     "illuminate/database": "^11.0",
     "illuminate/filesystem": "^11.0",
-    "illuminate/events": "^11.0"
+    "illuminate/events": "^11.0",
+    "vlucas/phpdotenv": "^5.6"
   }
 }
