@@ -13,6 +13,7 @@ use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Facade;
 use Swoole\Http\Server;
 use Tiny\Xel\Database\Contract\DriverContract;
+use Tiny\Xel\Validation\ValidatorFactory;
 
 /**
  * Boots Laravel's Eloquent ORM (via the standalone Capsule component) so
@@ -108,6 +109,11 @@ class EloquentDriver implements DriverContract
         );
         Container::setInstance($container);
         Facade::setFacadeApplication($container);
+
+        // ? lets "unique:table,column" / "exists:table,column" validation
+        // ? rules work against this connection with zero extra setup - see
+        // ? Tiny\Xel\Validation\ValidatorFactory.
+        ValidatorFactory::usingConnectionResolver($capsule->getDatabaseManager());
 
         $this->capsule = $capsule;
 

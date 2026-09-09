@@ -5,6 +5,7 @@ namespace Tiny\Xel\Context;
 use Swoole\Http\Request;
 use Swoole\Http\Response;
 use Swoole\Coroutine;
+use Tiny\Xel\Validation\ValidatorFactory;
 
 class RequestContext
 {
@@ -99,8 +100,49 @@ class RequestContext
     public static function getQueryParams(): array
     {
         $request = self::getRequest();
-        return $request ? $request->get : []; // Return all query parameters or an empty array if not available
+        return $request ? $request->get ?? [] : [];
     }
 
+    /**
+     * The current request's body: JSON-decoded when Content-Type is
+     * application/json, otherwise Swoole's own parsed form-encoded/
+     * multipart $request->post.
+     *
+     * @return array<string, mixed>
+     */
+    public static function getInput(): array
+    {
+        $request = self::getRequest();
+        if (!$request) {
+            return [];
+        }
 
+        $contentType = $request->header['content-type'] ?? '';
+        if (str_contains($contentType, 'application/json')) {
+            $decoded = json_decode($request->rawContent() ?: '{}', true);
+            return is_array($decoded) ? $decoded : [];
+        }
+
+        return $request->post ?? [];
+    }
+
+    /**
+     * Validates the current request's input (see getInput()) against
+     * $rules and returns only the validated fields. Throws
+     * Tiny\Xel\Exception\ValidationException on failure, which the
+     * framework's global exception handler already renders as a 422 with
+     * per-field errors - no try/catch needed in a route handler.
+     *
+     * @param array<string, mixed> $rules
+     * @param array<string, string> $messages
+     * @param array<string, string> $customAttributes
+     * @return array<string, mixed>
+     */
+    public static function validate(
+        array $rules,
+        array $messages = [],
+        array $customAttributes = []
+    ): array {
+        return ValidatorFactory::validate(self::getInput(), $rules, $messages, $customAttributes);
+    }
 }
