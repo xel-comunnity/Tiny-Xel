@@ -18,6 +18,7 @@ use function Tiny\Xel\Gemstone\Handler\Context\{
 };
 
 # Database driver contract
+use Tiny\Xel\Database\Contract\DriverContract;
 use Tiny\Xel\Database\DriverResolver;
 
 class Applications
@@ -67,6 +68,7 @@ class Applications
 
         // ? server events
         $this->server->on("workerStart", [$this, "onWorkerStart"]);
+        $this->server->on("workerStop", [$this, "onWorkerStop"]);
         $this->server->on("request", [$this, "onRequest"]);
         $this->server->on("task", [$this, "onTask"]);
 
@@ -83,6 +85,22 @@ class Applications
     {
         // ? boot  server provider
         __boot_app($server, $this->provider);
+    }
+
+    /**
+     * Closes the db driver's connection(s) before this worker process
+     * exits (e.g. on `$server->reload()`, or a graceful shutdown) - without
+     * this, a connection/pool booted in onWorkerStart just gets dropped
+     * with the process, leaving the OS socket (and, for a database server
+     * with a connection limit, its slot) to clean up on its own instead of
+     * closing it deliberately.
+     */
+    public function onWorkerStop(Server $server, int $workerId): void
+    {
+        $driver = $server->{'db_driver'} ?? null;
+        if ($driver instanceof DriverContract) {
+            $driver->shutdown();
+        }
     }
 
     // ? OnStart event : for handling Http Requests

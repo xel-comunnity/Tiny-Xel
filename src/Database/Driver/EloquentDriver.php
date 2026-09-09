@@ -12,6 +12,7 @@ use Illuminate\Events\Dispatcher;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Facade;
 use Swoole\Http\Server;
+use Throwable;
 use Tiny\Xel\Database\Contract\DriverContract;
 use Tiny\Xel\Validation\ValidatorFactory;
 
@@ -164,6 +165,24 @@ class EloquentDriver implements DriverContract
 
         // ? keep the query log from growing for the lifetime of the worker.
         $connection->flushQueryLog();
+    }
+
+    public function ping(): bool
+    {
+        try {
+            $this->capsule->connection()->select("select 1");
+            return true;
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+
+    public function shutdown(): void
+    {
+        // ? closes the one connection this worker has been holding for its
+        // ? whole lifetime (see the class docblock) - runs once, right
+        // ? before the worker process exits.
+        $this->capsule->getDatabaseManager()->disconnect();
     }
 
     /**
