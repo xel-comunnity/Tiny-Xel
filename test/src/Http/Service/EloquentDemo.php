@@ -28,10 +28,18 @@ final class EloquentDemo
 
     public function store(): void
     {
-        $user = User::create([
-            "name" => "Yogi",
-            "email" => uniqid("yogi", true) . "@example.com",
+        // ? RequestContext::validate() reads the current request's body
+        // ? (JSON or form-encoded) and throws Tiny\Xel\Exception\
+        // ? ValidationException on failure - already rendered as a 422
+        // ? with per-field errors by the global exception handler.
+        // ? "unique:users,email" works with zero extra setup: EloquentDriver
+        // ? wires the presence verifier automatically on boot.
+        $data = RequestContext::validate([
+            "name" => "required|string|max:255",
+            "email" => "required|email|unique:users,email",
         ]);
+
+        $user = User::create($data);
         RequestContext::json($user, 201);
     }
 }
