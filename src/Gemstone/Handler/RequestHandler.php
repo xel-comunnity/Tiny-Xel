@@ -5,6 +5,8 @@ namespace Tiny\Xel\Gemstone\Handler;
 use Swoole\Http\Server;
 use Swoole\Http\Request;
 use Swoole\Http\Response;
+use Throwable;
+use Tiny\Xel\Exception\ExceptionRenderer;
 
 /**
  *@param Server $server
@@ -14,38 +16,56 @@ use Swoole\Http\Response;
  */
 function __requestHandler(Server $server, Request $request, Response $response)
 {
-    // ? Fav Icon Handler
-    __favIconHandler($server, $request, $response);
+    // ? Fav Icon Handler / replays a boot-time failure - either one means
+    // ? the response is already sent and this request is done.
+    if (__favIconHandler($server, $request, $response)) {
+        return;
+    }
 
-    // ? bindFLy handler injection
-    __fly_injection_init(server: $server);
+    // ? Anything uncaught from here on - routing (404/405), middleware, or
+    // ? the route handler itself - previously propagated straight out of
+    // ? onRequest() with nothing catching it: the client's connection would
+    // ? just hang instead of ever getting a response. This is the single
+    // ? place that guarantees one always gets sent.
+    try {
+        // ? bindFLy handler injection
+        __fly_injection_init(server: $server);
 
-    // ? router handler process
-    __router_handler($server);
+        // ? router handler process
+        __router_handler($server);
+    } catch (Throwable $e) {
+        ExceptionRenderer::respond($response, $e);
+    }
 }
 
 /**
  *@param Server $server
  *@param Request $request
  *@param Response $response
- *  fav icon error handler for chorome browser
+ * fav icon error handler for chorome browser. Returns true when it has
+ * already fully handled (and ended) the response, so the caller must not
+ * continue processing this request any further.
  */
-function __favIconHandler(Server $server, Request $request, Response $response)
+function __favIconHandler(Server $server, Request $request, Response $response): bool
 {
     if (
         $request->server["path_info"] == "/favicon.ico" ||
         $request->server["request_uri"] == "/favicon.ico"
     ) {
         $response->end();
-        return;
+        return true;
     }
 
     if (isset($server->error)) {
-        $response->header("Content-Type", "application/json");
-        $response->status(500);
-
-        $response->end(json_encode($server->{'error'}));
+        // ? a boot-time failure (see ProviderManager::__db/__provider) -
+        // ? replayed safely on every request until the worker restarts,
+        // ? instead of falling through into a router/context that never
+        // ? finished booting.
+        ExceptionRenderer::respond($response, $server->{'error'});
+        return true;
     }
+
+    return false;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////// ? Instance handler

@@ -4,6 +4,8 @@ namespace Tiny\Xel\Gemstone\Router;
 
 use FastRoute\Dispatcher;
 use Tiny\Xel\Context\Context;
+use Tiny\Xel\Exception\MethodNotAllowedException;
+use Tiny\Xel\Exception\NotFoundException;
 
 # Swoole Server
 use Swoole\Http\Server;
@@ -100,29 +102,16 @@ class RouterHandler
 
         switch ($routeInfo[0]) {
             case Dispatcher::NOT_FOUND:
-                $response->header("Content-Type", "application/json");
-                $response->status(404);
-                $response->end(
-                    json_encode([
-                        "error" => 404,
-                        "message" =>
-                            "The requested resource could not be found on this server.",
-                    ])
-                );
+                // ? __requestHandler's catch-all renders this consistently
+                // ? with every other error in the system (see
+                // ? Tiny\Xel\Exception\ExceptionRenderer). Previously built
+                // ? its own one-off JSON shape here.
+                throw new NotFoundException();
 
-                break;
             case Dispatcher::METHOD_NOT_ALLOWED:
-                $response->header("Content-Type", "application/json");
-                $response->status(404);
-                $response->end(
-                    json_encode([
-                        "error" => 404,
-                        "message" =>
-                            "Method not allowed for this type  of request",
-                    ])
-                );
-
-                break;
+                // ? previously sent status(404) here despite the message
+                // ? saying "method not allowed" - the correct code is 405.
+                throw new MethodNotAllowedException();
 
             case Dispatcher::FOUND:
                 $handler = $routeInfo[1]["handler"];
