@@ -1,5 +1,14 @@
 <?php
 
+use Tiny\Xel\Config\Env;
+
+// ? Loads test/.env (see test/.env.example) once, before any config file
+// ? below reads Env::get() - real credentials/settings never need to be
+// ? hardcoded into a file that gets committed. Safe to call even if
+// ? test/.env doesn't exist (e.g. production, where a container/host
+// ? already injects real environment variables).
+Env::load(__DIR__ . "/..");
+
 // ? App config
 $router = require __DIR__ . "/../src/Router/router.php";
 $db = require __DIR__ . "/db.php";
@@ -26,7 +35,8 @@ return [
         // ?   Eloquent's connection resolver is static/global, so selecting this driver
         // ?   makes Applications::__init() start the server with enable_coroutine=false -
         // ?   see src/Database/Driver/EloquentDriver.php for why.
-        "contract" => "swoole-pool", // "eloquent",
+        // ? Override via DB_CONTRACT in test/.env instead of editing this file.
+        "contract" => Env::get("DB_CONTRACT", "swoole-pool"),
 
         "config" => $db,
 
