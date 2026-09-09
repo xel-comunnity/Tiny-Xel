@@ -3,7 +3,9 @@
 namespace Tiny\Test\Http\Service;
 
 use Tiny\Test\Model\User;
+use Tiny\Test\Task\LogUserCreatedTask;
 use Tiny\Xel\Context\RequestContext;
+use Tiny\Xel\Task\TaskDispatcher;
 
 /**
  * Demonstrates the "eloquent" db driver contract: plain Eloquent Model
@@ -40,6 +42,11 @@ final class EloquentDemo
         ]);
 
         $user = User::create($data);
+
+        // ? offloaded to a Swoole task worker (see Tiny\Xel\Task\
+        // ? TaskDispatcher) - the response below doesn't wait on it.
+        TaskDispatcher::dispatch(new LogUserCreatedTask($user->email));
+
         RequestContext::json($user, 201);
     }
 }
