@@ -18,7 +18,13 @@ use function Tiny\Xel\Gemstone\Handler\Context\{
 };
 
 # Database driver contract
+use Tiny\Xel\Database\Contract\DriverContract;
 use Tiny\Xel\Database\DriverResolver;
+
+# Background task contract
+use Tiny\Xel\Task\Contract\TaskContract;
+
+use Throwable;
 
 class Applications
 {
@@ -69,6 +75,7 @@ class Applications
         $this->server->on("workerStart", [$this, "onWorkerStart"]);
         $this->server->on("request", [$this, "onRequest"]);
         $this->server->on("task", [$this, "onTask"]);
+        $this->server->on("finish", [$this, "onFinish"]);
 
         $this->server->start();
         
@@ -106,9 +113,46 @@ class Applications
     {
     }
     /**
-     * @return void
+     * Runs in a Swoole task worker process - a separate process from the
+     * one handling the HTTP request that dispatched this task (see
+     * Tiny\Xel\Task\TaskDispatcher::dispatch()) - so it's free to do
+     * something slow without blocking any request.
+     *
+     * @param mixed $data whatever was passed to $server->task() -
+     *        TaskDispatcher only ever sends a TaskContract
      */
-    public function onTask(): void
+    public function onTask(Server $server, int $taskId, int $srcWorkerId, mixed $data): mixed
+    {
+        if (!$data instanceof TaskContract) {
+            error_log("Task worker received non-TaskContract data (task #{$taskId}) - ignoring.");
+            return null;
+        }
+
+        try {
+            return $data->handle();
+        } catch (Throwable $e) {
+            error_log("Task #{$taskId} failed: {$e->getMessage()}");
+            return null;
+        } finally {
+            // ? __flush_context() does this same cleanup (roll back a
+            // ? leaked transaction, trim the query log, return a pooled
+            // ? connection) after every HTTP request - onTask() never goes
+            // ? through that path since a task isn't a request, so it has
+            // ? to happen here instead.
+            $driver = $server->{'db_driver'} ?? null;
+            if ($driver instanceof DriverContract) {
+                $driver->release();
+            }
+        }
+    }
+
+    /**
+     * Runs back on the worker that dispatched the task, once onTask()
+     * returns - $data is that return value. No-op by default: override
+     * this (extend Applications, or register your own "finish" handler)
+     * if you need to act on a task's result.
+     */
+    public function onFinish(Server $server, int $taskId, mixed $data): void
     {
     }
 
