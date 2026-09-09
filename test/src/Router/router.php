@@ -9,6 +9,7 @@ require __DIR__."/../../../vendor/autoload.php";
 
 # Router Lib
 use Tiny\Test\Http\Service\Home;
+use Tiny\Test\Http\Service\EloquentDemo;
 use Tiny\Xel\Gemstone\Router\Router;
 
 $router = new Router();
@@ -24,6 +25,11 @@ $router->Group(['prefix' => "/api"], function (Router $router) {
         $router->GET("/", [Home::class, "index"]);
         $router->GET("/view", [Home::class, "view"]);
         $router->POST("/data", [Home::class, "data"]);
+
+        // ? demonstrates the "eloquent" db driver contract - see
+        // ? test/config/provider.php ("db.contract") and test/migrate.php
+        $router->GET("/eloquent-users", [EloquentDemo::class, "index"]);
+        $router->POST("/eloquent-users", [EloquentDemo::class, "store"]);
     });
 });
 
