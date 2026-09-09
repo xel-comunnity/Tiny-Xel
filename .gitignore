@@ -2,3 +2,5 @@
 /vscode
 /vendor
 composer.lock
+.env
+test/.env
