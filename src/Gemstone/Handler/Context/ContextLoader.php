@@ -12,6 +12,7 @@ use Tiny\Xel\Context\Context;
 use Tiny\Xel\Context\RequestContext;
 use Tiny\Xel\Context\ErrorContext;
 use Tiny\Xel\Context\DBContext;
+use Tiny\Xel\Database\Contract\DriverContract;
 
 /**
  *@param Request $request
@@ -42,11 +43,21 @@ function __init__context(Request $request, Response $response, Server $server)
 
 function __flush_context()
 {
-    // ? Every coroutine-scoped store keyed by Coroutine::getuid() must be
-    // ? cleared at the end of its request. Coroutine ids are not reused
-    // ? while the worker is alive, so leaving any one of these pools
-    // ? unflushed leaks that request's data (and, for DBContext, a pooled
-    // ? PDO connection) for the lifetime of the worker process.
+    // ? Let the active db driver release its own per-request state first
+    // ? (e.g. SwoolePoolDriver returns its pooled PDO connection, Eloquent
+    // ? trims its query log) - it needs to run before Context::clear() below
+    // ? removes the "db_driver" entry it's read from.
+    $driver = Context::get("db_driver");
+    if ($driver instanceof DriverContract) {
+        $driver->release();
+    }
+
+    // ? Every coroutine-scoped store keyed by Coroutine::getuid() (or by the
+    // ? shared blocking-mode slot - see Context::scopeId) must be cleared at
+    // ? the end of its request. Coroutine ids are not reused while the
+    // ? worker is alive, so leaving any one of these pools unflushed leaks
+    // ? that request's data (and, for DBContext, a pooled PDO connection)
+    // ? for the lifetime of the worker process.
     Context::clear();
     RequestContext::clear();
     ErrorContext::clear();
@@ -59,8 +70,22 @@ function __system__context(Request $request, Response $response, Server $server)
     Context::set("request", $request);
     Context::set("response", $response);
 
-    // ? db provider (a coroutine-safe PDOPool, not a single connection)
-    Context::set("dbconnection", $server->{'pdo'});
+    // ? RequestContext keeps its own per-coroutine pool (see
+    // ? Context::scopeId) so its json()/text()/download()/... helpers work
+    // ? off the current request without every handler having to fetch the
+    // ? response via Context::get("response") first.
+    RequestContext::setRequest($request);
+    RequestContext::setResponse($response);
+
+    // ? db driver contract (see Tiny\Xel\Database\Contract\DriverContract) -
+    // ? not every driver exposes a raw PDOPool (EloquentDriver doesn't), so
+    // ? both are set only when the active driver actually provides them.
+    if (isset($server->{'db_driver'})) {
+        Context::set("db_driver", $server->{'db_driver'});
+    }
+    if (isset($server->{'pdo'})) {
+        Context::set("dbconnection", $server->{'pdo'});
+    }
 }
 
 /**

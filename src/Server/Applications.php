@@ -17,6 +17,9 @@ use function Tiny\Xel\Gemstone\Handler\Context\{
     __flush_context
 };
 
+# Database driver contract
+use Tiny\Xel\Database\DriverResolver;
+
 class Applications
 {
     public Server $server;
@@ -44,8 +47,23 @@ class Applications
             $this->provider["server"]["api"]["api"]["sock"]
         );
 
+        $options = $this->provider["server"]["api"]["api"]["options"];
+
+        // ? Some db driver contracts (e.g. EloquentDriver) rely on
+        // ? static/global state that isn't coroutine-safe, and need the
+        // ? server to process one request at a time - normal, non-concurrent
+        // ? PHP execution - to stay correct. enable_coroutine can only be
+        // ? set before the server starts, so this must happen here rather
+        // ? than in onWorkerStart, where the db driver is actually booted.
+        $dbDriver = DriverResolver::resolve(
+            $this->provider["db"]["contract"] ?? "swoole-pool"
+        );
+        if ($dbDriver::requiresBlockingServer()) {
+            $options["enable_coroutine"] = false;
+        }
+
         // ? server setup
-        $this->server->set($this->provider["server"]["api"]["api"]["options"]);
+        $this->server->set($options);
 
         // ? server events
         $this->server->on("workerStart", [$this, "onWorkerStart"]);

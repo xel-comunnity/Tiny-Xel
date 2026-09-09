@@ -19,7 +19,24 @@ return [
     // ? if you prefer persistance connection, create custom adapather or u can use library provided to make persistance connection
     "db" => [
         "mode" => "single",
+
+        // ? which Tiny\Xel\Database\Contract\DriverContract implementation to boot.
+        // ? "swoole-pool" (default): coroutine-native PDOPool, safe with coroutines enabled.
+        // ? "eloquent": boots Laravel's Eloquent ORM (Model, query builder, migrations).
+        // ?   Eloquent's connection resolver is static/global, so selecting this driver
+        // ?   makes Applications::__init() start the server with enable_coroutine=false -
+        // ?   see src/Database/Driver/EloquentDriver.php for why.
+        "contract" => "swoole-pool", // "eloquent",
+
         "config" => $db,
+
+        // ? only read by the "eloquent" contract. Point "path" at a directory of
+        // ? Illuminate\Database\Migrations\Migration classes and run them with
+        // ? `php test/migrate.php` (migrations run once via CLI, not on worker boot).
+        "migrations" => [
+            "path" => __DIR__ . "/../database/migrations",
+            "table" => "migrations",
+        ],
     ],
 
     // ? this key will process about routing and middleware case

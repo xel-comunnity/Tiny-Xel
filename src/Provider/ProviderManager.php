@@ -4,9 +4,8 @@ namespace Tiny\Xel\Provider;
 
 use Exception;
 use Swoole\Http\Server;
-use Swoole\Database\PDOConfig;
-use Swoole\Database\PDOPool;
 use Swoole\Timer;
+use Tiny\Xel\Database\DriverResolver;
 use Tiny\Xel\Gemstone\Router\RouterHandler;
 
 function __boot_app(Server $server, array $provider)
@@ -38,19 +37,20 @@ function __periodic_reload(Server $server, array $hotReload)
 }
 
 /////////////////////////////////////////////////////////////////////////// ? DB Init
+
+/**
+ * Boots the configured db driver contract (see Tiny\Xel\Database\Contract\
+ * DriverContract). Defaults to "swoole-pool" - the existing coroutine-native
+ * PDOPool driver - to stay backwards compatible with configs that don't set
+ * "contract" at all.
+ */
 function __db(Server $server, array $config)
 {
-    // ? pdo config
     try {
-        $data = match ($config["config"]["driver"]) {
-            "mysql" => __mysql($config),
-            "sqlite" => __sqlite($config),
-            "pgsql" => __pgsql($config),
-            default => throw new Exception("Unsupported Driver"),
-        };
+        $driver = DriverResolver::make($config["contract"] ?? "swoole-pool");
+        $driver->boot($server, $config);
 
-        // ? dbmanager
-        $server->pdo = $data;
+        $server->{'db_driver'} = $driver;
     } catch (Exception $e) {
         $server->error = [
             "error-message" => $e->getMessage(),
@@ -58,49 +58,6 @@ function __db(Server $server, array $config)
             "error-trace" => $e->getTrace(),
         ];
     }
-}
-
-function __sqlite($config): PDOPool
-{
-    $conf = new PDOConfig();
-    $conf
-        ->withDriver($config["config"]["driver"])
-        ->withDbname($config["config"]["database"]);
-
-    $pdoPool = new PDOPool($conf, $config["config"]["pool"]);
-    return $pdoPool;
-}
-
-function __mysql($config): PDOPool
-{
-    $conf = new PDOConfig();
-    $conf
-        ->withDriver($config["config"]["driver"])
-        ->withHost($config["config"]["host"])
-        ->withPort($config["config"]["port"])
-        ->withDbname($config["config"]["db"])
-        ->withCharset($config["config"]["charset"])
-        ->withUsername($config["config"]["username"])
-        ->withPassword($config["config"]["password"]);
-    $pdoPool = new PDOPool($conf, $config["config"]["pool"]);
-
-    return $pdoPool;
-}
-
-function __pgsql($config): PDOPool
-{
-    $conf = new PDOConfig();
-    $conf
-        ->withDriver($config["config"]["driver"])
-        ->withHost($config["config"]["host"])
-        ->withPort($config["config"]["port"])
-        ->withDbname($config["config"]["db"])
-        ->withCharset($config["config"]["charset"])
-        ->withUsername($config["config"]["username"])
-        ->withPassword($config["config"]["password"]);
-    $pdoPool = new PDOPool($conf, $config["config"]["pool"]);
-
-    return $pdoPool;
 }
 
 /////////////////////////////////////////////////////////////////////////// ? Provider Init
