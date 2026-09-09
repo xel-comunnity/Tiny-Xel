@@ -11,6 +11,7 @@ require __DIR__."/../../../vendor/autoload.php";
 use Tiny\Test\Http\Service\Home;
 use Tiny\Test\Http\Service\EloquentDemo;
 use Tiny\Xel\Gemstone\Router\Router;
+use Tiny\Xel\Health\HealthCheckHandler;
 
 $router = new Router();
 
@@ -18,6 +19,10 @@ $router = new Router();
 $router->setGlobalMiddleware([
    // Auth::class
 ]);
+
+// ? checks the active db driver's connectivity - see
+// ? src/Health/HealthCheckHandler.php and DriverContract::ping()
+$router->GET("/health", [HealthCheckHandler::class, "handle"]);
 
 // ? router config
 $router->Group(['prefix' => "/api"], function (Router $router) {
