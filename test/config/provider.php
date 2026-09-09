@@ -30,13 +30,16 @@ return [
         "mode" => "single",
 
         // ? which Tiny\Xel\Database\Contract\DriverContract implementation to boot.
-        // ? "swoole-pool" (default): coroutine-native PDOPool, safe with coroutines enabled.
-        // ? "eloquent": boots Laravel's Eloquent ORM (Model, query builder, migrations).
-        // ?   Eloquent's connection resolver is static/global, so selecting this driver
-        // ?   makes Applications::__init() start the server with enable_coroutine=false -
-        // ?   see src/Database/Driver/EloquentDriver.php for why.
+        // ? "eloquent" (default): boots Laravel's Eloquent ORM (Model, query builder,
+        // ?   migrations). Its connection resolver is static/global, so this makes
+        // ?   Applications::__init() start the server with enable_coroutine=false -
+        // ?   see src/Database/Driver/EloquentDriver.php for why. Chosen as the
+        // ?   default because it needs no coroutine-safety reasoning in app code.
+        // ? "swoole-pool": coroutine-native PDOPool - opt into this only if you
+        // ?   specifically need coroutine concurrency and are prepared to reason
+        // ?   about it (see src/Database/Driver/SwoolePoolDriver.php).
         // ? Override via DB_CONTRACT in test/.env instead of editing this file.
-        "contract" => Env::get("DB_CONTRACT", "swoole-pool"),
+        "contract" => Env::get("DB_CONTRACT", "eloquent"),
 
         "config" => $db,
 

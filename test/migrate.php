@@ -18,7 +18,7 @@ use Tiny\Xel\Database\Driver\EloquentDriver;
 $provider = require __DIR__ . "/config/provider.php";
 $db = $provider["db"];
 
-if (($db["contract"] ?? "swoole-pool") !== "eloquent") {
+if (($db["contract"] ?? "eloquent") !== "eloquent") {
     fwrite(
         STDERR,
         "db.contract is not \"eloquent\" in test/config/provider.php - nothing to migrate.\n"
