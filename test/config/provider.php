@@ -37,6 +37,9 @@ return [
             "path" => __DIR__ . "/../database/migrations",
             "table" => "migrations",
         ],
+
+        // ? after migrating, seed sample data with `php test/seed.php` - see
+        // ? test/database/seeders/DatabaseSeeder.php.
     ],
 
     // ? this key will process about routing and middleware case

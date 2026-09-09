@@ -4,7 +4,8 @@
   "autoload": {
     "psr-4": {
       "Tiny\\Xel\\": "src/",
-      "Tiny\\Test\\": "test/src/"
+      "Tiny\\Test\\": "test/src/",
+      "Tiny\\Test\\Database\\Seeders\\": "test/database/seeders/"
     },
     "files": [
       "src/Provider/ProviderManager.php",
